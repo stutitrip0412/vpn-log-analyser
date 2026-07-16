@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { ROLES } from "../constants/role.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -36,13 +37,9 @@ const userSchema = new mongoose.Schema(
     },
 
     role: {
-      type: String,
-      enum: [
-        "Admin",
-        "Investigator",
-        "Analyst",
-      ],
-      default: "Analyst",
+    type: String,
+    enum: Object.values(ROLES),
+    default: ROLES.ANALYST
     },
 
     department: {
@@ -76,17 +73,16 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function () {
 
-    if (!this.isModified("password"))
-        return next();
+    if (!this.isModified("password")) {
+        return;
+    }
 
     this.password = await bcrypt.hash(
         this.password,
         12
     );
-
-    next();
 
 });
 

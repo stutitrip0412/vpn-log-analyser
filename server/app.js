@@ -4,13 +4,19 @@ import helmet from "helmet";
 import morgan from "morgan";
 import uploadRoutes from "./routes/upload.route.js";
 import analyticsRoutes from "./routes/analytics.route.js";
-import authRoutes from "./routes/auth.routes.js";
+import authRoutes from "./routes/auth.route.js";
 import cookieParser from "cookie-parser";
 
 const app = express();
 
-app.use(cors());
 
+
+app.use(
+    cors({
+        origin: "http://localhost:5173",
+        credentials: true,
+    })
+);
 app.use(helmet());
 
 app.use(morgan("dev"));

@@ -1,6 +1,7 @@
 import User from "../models/user.model.js";
 import { generateTokens, cookieOptions } from "../utils/jwt.js";
-
+import { ROLES } from "../constants/role.js";
+import jwt from "jsonwebtoken";
 /**
  * Register User
  */
@@ -82,7 +83,7 @@ export const registerUser = async (req, res) => {
 
             password,
 
-            role,
+            role:role || ROLES.ANALYST,
 
             department,
 
@@ -156,18 +157,18 @@ export const registerUser = async (req, res) => {
 
     }
 
-    catch (error) {
+   catch (error) {
 
-        return res.status(500).json({
+    console.error("========== REGISTER ERROR ==========");
+    console.error(error);
+    console.error(error.stack);
 
-            success: false,
+    return res.status(500).json({
+        success: false,
+        message: error.message
+    });
 
-            message: error.message
-
-        });
-
-    }
-
+}
 };
 
 /**
@@ -354,5 +355,211 @@ export const loginUser = async (req, res) => {
         });
 
     }
+
+};
+
+export const refreshAccessToken = async (req, res) => {
+
+    try {
+
+        const incomingRefreshToken =
+
+            req.cookies?.refreshToken ||
+
+            req.body.refreshToken;
+
+        if (!incomingRefreshToken) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message: "Refresh token required."
+
+            });
+
+        }
+
+        // Verify JWT
+
+        const decoded = jwt.verify(
+
+            incomingRefreshToken,
+
+            process.env.JWT_REFRESH_SECRET
+
+        );
+
+        const user = await User.findById(
+
+            decoded._id
+
+        ).select("+refreshToken");
+
+        if (!user) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message: "Invalid refresh token."
+
+            });
+
+        }
+
+        // Compare stored refresh token
+
+        if (
+
+            incomingRefreshToken !==
+
+            user.refreshToken
+
+        ) {
+
+            return res.status(401).json({
+
+                success: false,
+
+                message: "Refresh token mismatch."
+
+            });
+
+        }
+
+        // Generate new tokens
+
+        const {
+
+            accessToken,
+
+            refreshToken
+
+        } = await generateTokens(user._id);
+
+        return res
+
+            .status(200)
+
+            .cookie(
+
+                "accessToken",
+
+                accessToken,
+
+                cookieOptions
+
+            )
+
+            .cookie(
+
+                "refreshToken",
+
+                refreshToken,
+
+                cookieOptions
+
+            )
+
+            .json({
+
+                success: true,
+
+                accessToken,
+
+                refreshToken
+
+            });
+
+    }
+
+    catch (error) {
+
+        return res.status(401).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+export const logoutUser = async (req, res) => {
+
+    try {
+
+        await User.findByIdAndUpdate(
+
+            req.user._id,
+
+            {
+
+                $unset: {
+
+                    refreshToken: 1
+
+                }
+
+            }
+
+        );
+
+        return res
+
+            .status(200)
+
+            .clearCookie(
+
+                "accessToken",
+
+                cookieOptions
+
+            )
+
+            .clearCookie(
+
+                "refreshToken",
+
+                cookieOptions
+
+            )
+
+            .json({
+
+                success: true,
+
+                message: "Logged out successfully."
+
+            });
+
+    }
+
+    catch (error) {
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: error.message
+
+        });
+
+    }
+
+};
+
+export const getCurrentUser = async (req, res) => {
+
+    return res.status(200).json({
+
+        success: true,
+
+        user: req.user
+
+    });
 
 };
